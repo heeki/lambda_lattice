@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private hosted zone in Route 53 for custom domain name with Lattice
+Transform:
+  - AWS::Serverless-2016-10-31
+  - AWS::LanguageExtensions
+Parameters:
+  pDomainName:
+    Type: String
+  pVpcId:
+    Type: String
+Resources:
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref pDomainName
+      # QueryLoggingConfig:
+      #   CloudWatchLogsLogGroupArn: !GetAtt QueryLogGroup.Arn
+      VPCs:
+        - VPCId: !Ref pVpcId
+          VPCRegion: !Ref AWS::Region
+      HostedZoneTags:
+        - Key: application:group
+          Value: lattice
+        - Key: application:subgroup
+          Value: infrastructure
+        - Key: application:owner
+          Value: heeki
+  # QueryLogGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   Properties:
+  #     LogGroupName: !Sub '/aws/route53/cloud.heeki.internal'
+  #     RetentionInDays: 7
+  # QueryLogGroupPolicy:
+  #   Type: AWS::Logs::ResourcePolicy
+  #   Properties:
+  #     PolicyName: route53-query-logs-to-cloudwatch
+  #     PolicyDocument:
+  #       Fn::ToJsonString:
+  #         Version: '2012-10-17'
+  #         Statement:
+  #           - Principal:
+  #               Service:
+  #                 - route53.amazonaws.com
+  #             Effect: Allow
+  #             Action:
+  #               - logs:PutLogEvents
+  #             Resource: !GetAtt QueryLogGroup.Arn
+Outputs:
+  outHostedZoneId:
+    Value: !Ref HostedZone

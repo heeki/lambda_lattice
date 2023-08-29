@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Alias in Route 53 for custom domain name with Lattice
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  pHostedZoneId:
+    Type: String
+  pDomainName:
+    Type: String
+  pAliasTargetName:
+    Type: String
+Resources:
+  Alias:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref pHostedZoneId
+      Name: !Ref pDomainName
+      ResourceRecords:
+        - !Ref pAliasTargetName
+      TTL: 60
+      Type: CNAME
+Outputs:
+  outAlias:
+    Value: !Ref Alias

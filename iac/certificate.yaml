@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private certificate in ACM for custom domain name with Lattice
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  pDomainName:
+    Type: String
+  pHostedZoneId:
+    Type: String
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref pDomainName
+      # NOTE: Route 53 validation only works with public hosted zones
+      # ValidationMethod: EMAIL
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref pDomainName
+          HostedZoneId: !Ref pHostedZoneId
+Outputs:
+  outCertificateArn:
+    Value: !Ref Certificate

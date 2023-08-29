@@ -1,0 +1,6 @@
+{
+    "Fn": {
+        "LATTICE_SERVICE_ARN": "lattice-service-arn",
+        "LATTICE_SERVICE_ENDPOINT": "https://lattice-endpoint-url"
+    }
+}

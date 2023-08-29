@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Security groups for VPC Lattice example
+Transform:
+  - AWS::LanguageExtensions
+  - AWS::Serverless-2016-10-31
+Parameters:
+  pVpcId:
+    Type: String
+Resources:
+  # Security Groups
+  LatticeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: sg-vpc-lattice-listener
+      SecurityGroupIngress:
+        SourceSecurityGroupId: !Ref ClientSecurityGroup
+        FromPort: -1
+        IpProtocol: -1
+        ToPort: -1
+      VpcId: !Ref pVpcId
+  ClientSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: sg-vpc-lattice-client
+      SecurityGroupEgress:
+        CidrIp: 0.0.0.0/0
+        FromPort: -1
+        IpProtocol: -1
+        ToPort: -1
+      VpcId: !Ref pVpcId
+Outputs:
+  outLatticeSecurityGroup:
+    Value: !Ref LatticeSecurityGroup
+  outClientSecurityGroup:
+    Value: !Ref ClientSecurityGroup

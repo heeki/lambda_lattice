@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC Lattice setup for Lambda integration example
+Transform:
+  - AWS::LanguageExtensions
+  - AWS::Serverless-2016-10-31
+Parameters:
+  pVpcId:
+    Type: String
+  pFnArn:
+    Type: String
+  pDomainName:
+    Type: String
+  pCertificateArn:
+    Type: String
+  pSecurityGroup:
+    Type: String
+Resources:
+  # Lattice
+  AuthPolicyNetwork:
+    Type: AWS::VpcLattice::AuthPolicy
+    Properties:
+      ResourceIdentifier: !Ref ServiceNetwork
+      Policy:
+        Statement:
+          - Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Effect: Allow
+            Action: vpc-lattice-svcs:Invoke
+            Resource: "*"
+            Condition:
+              StringEquals:
+                "vpc-lattice-svcs:SourceVpc": !Ref pVpcId
+  AuthPolicyService:
+    Type: AWS::VpcLattice::AuthPolicy
+    Properties:
+      ResourceIdentifier: !Ref Service
+      Policy:
+        Statement:
+          - Principal: "*"
+            Effect: Allow
+            Action: vpc-lattice-svcs:Invoke
+            Resource: "*"
+            Condition:
+              StringNotEquals:
+                "aws:PrincipalType": "Anonymous"
+              StringEquals:
+                "vpc-lattice-svcs:ServiceNetworkArn": !GetAtt ServiceNetwork.Arn
+  ServiceNetwork:
+    Type: AWS::VpcLattice::ServiceNetwork
+    Properties:
+      AuthType: AWS_IAM
+  VpcAssociation:
+    Type: AWS::VpcLattice::ServiceNetworkVpcAssociation
+    Properties:
+      VpcIdentifier: !Ref pVpcId
+      ServiceNetworkIdentifier: !Ref ServiceNetwork
+      SecurityGroupIds:
+        - !Ref pSecurityGroup
+  Service:
+    Type: AWS::VpcLattice::Service
+    Properties:
+      AuthType: AWS_IAM
+      CustomDomainName: !Ref pDomainName
+      CertificateArn: !Ref pCertificateArn
+  ServiceAssociation:
+    Type: AWS::VpcLattice::ServiceNetworkServiceAssociation
+    Properties:
+      ServiceNetworkIdentifier: !Ref ServiceNetwork
+      ServiceIdentifier: !Ref Service
+  TargetGroup:
+    Type: AWS::VpcLattice::TargetGroup
+    Properties:
+      Type: LAMBDA
+      Targets:
+        - Id: !Ref pFnArn
+  Listener:
+    Type: AWS::VpcLattice::Listener
+    Properties:
+      ServiceIdentifier: !Ref Service
+      Protocol: HTTPS
+      DefaultAction:
+        Forward:
+          TargetGroups:
+            - TargetGroupIdentifier: !Ref TargetGroup
+              Weight: 100
+  FnPerm:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref pFnArn
+      Principal: vpc-lattice.amazonaws.com
+      Action: lambda:InvokeFunction
+      SourceArn: !GetAtt TargetGroup.Arn
+Outputs:
+  outServiceArn:
+    Value: !Ref Service
+  outServiceEndpoint:
+    Value: !GetAtt Service.DnsEntry.DomainName

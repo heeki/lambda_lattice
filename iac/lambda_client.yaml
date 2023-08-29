@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda configuration for VPC Lattice integration
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Layers:
+      - arn:aws:lambda:us-east-1:546275881527:layer:xray-python3:2
+      - arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:35
+    MemorySize: !Ref pFnMemory
+    Runtime: python3.10
+    Timeout: !Ref pFnTimeout
+    Tracing: Active
+Parameters:
+  pFnMemory:
+    Type: Number
+  pFnTimeout:
+    Type: Number
+  pServiceArn:
+    Type: String
+  pServiceEndpoint:
+    Type: String
+  pSecurityGroupIds:
+    Type: List<String>
+  pSubnetIds:
+    Type: List<String>
+Resources:
+  # IAM
+  FnRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: cloudwatch-insights
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource: '*'
+        - PolicyName: cloudwatch-logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: 'arn:aws:logs:*:*:log-group:*:*'
+        - PolicyName: xray
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                  - xray:GetSamplingStatisticSummaries
+                Resource: '*'
+        - PolicyName: ec2-v2n
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                Resource: '*'
+        - PolicyName: vpc-lattice
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - vpc-lattice-svcs:Invoke
+                Resource: !Sub '${pServiceArn}/*'
+  # Lambda
+  Fn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src/client
+      Handler: fn.handler
+      Role: !GetAtt FnRole.Arn
+      Environment:
+        Variables:
+          LATTICE_SERVICE_ENDPOINT: !Ref pServiceEndpoint
+      VpcConfig:
+        SecurityGroupIds: !Ref pSecurityGroupIds
+        SubnetIds: !Ref pSubnetIds
+      Tags:
+        application:group: lattice
+        application:subgroup: client
+        application:owner: heeki
+  FnLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${Fn}'
+      RetentionInDays: 7
+Outputs:
+  outFn:
+    Value: !Ref Fn
+  outFnClientArn:
+    Value: !GetAtt Fn.Arn
