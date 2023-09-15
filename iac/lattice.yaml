@@ -70,6 +70,8 @@ Resources:
   TargetGroup:
     Type: AWS::VpcLattice::TargetGroup
     Properties:
+      Config:
+        LambdaEventStructureVersion: V2
       Type: LAMBDA
       Targets:
         - Id: !Ref pFnArn
